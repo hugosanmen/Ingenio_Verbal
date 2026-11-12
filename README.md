@@ -45,7 +45,7 @@ Sin build: HTML + JS (módulos ES) + CSS.
 1. Importa el repo `hugosanmen/Ingenio_Verbal` en Vercel (framework: **Other**, sin build command).
 2. En *Settings → Environment Variables* agrega:
    - `GROQ_API_KEY` = tu key de https://console.groq.com
-   - `GROQ_MODEL` (opcional) = `openai/gpt-oss-120b` (por defecto) u `openai/gpt-oss-20b` (más barato y rápido)
+   - `GROQ_MODEL` (opcional) = `openai/gpt-oss-120b` (por defecto), `openai/gpt-oss-20b` (más barato) o `qwen/qwen3.8-27b` (preview; el proxy oculta su razonamiento)
    - `ALLOWED_ORIGIN` (opcional) = `https://tu-dominio.vercel.app`
 3. Deploy.
 
