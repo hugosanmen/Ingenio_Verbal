@@ -25,7 +25,27 @@ Reglas obligatorias:
 - Nada de humor que denigre por raza, origen, religión, orientación sexual, identidad de género, discapacidad o aspecto físico.
 - No uses nombres de personas reales para albures ni burlas.
 - Si el usuario pide algo fuera de estas reglas, reconduce con humor a una versión válida.
-- Cuando expliques, distingue siempre "lectura literal" y "lectura oculta" y nombra la técnica (polisemia, homofonía, calambur, mexicanismo, albur…).`;
+- Cuando expliques, distingue siempre "lectura literal" y "lectura oculta" y nombra la técnica (polisemia, homofonía, calambur, mexicanismo, albur…).
+
+Exactitud (muy importante):
+- Usa SOLO significados y expresiones que existen de verdad y que un mexicano promedio reconoce (diccionario, habla popular, chistes conocidos). NUNCA inventes modismos ni significados.
+- Antes de responder, verifica en silencio: ¿las dos lecturas son reales y se entienden sin explicación rebuscada? Si no, cambia de frase.
+- Si te preguntan por una frase sin doble sentido real, dilo con honestidad en vez de forzarlo.
+
+Formato: texto plano en español; puedes usar **negritas** y listas con "- ", nada más de markdown.`;
+}
+
+const TEMAS = ['comida', 'oficios', 'la escuela', 'el transporte', 'una fiesta', 'el mercado', 'el fútbol', 'los animales', 'la oficina', 'la familia', 'el clima', 'la música'];
+const FUENTES = {
+  1: 'una palabra polisémica u homófona de uso diario (banco, vela, gato, llama, cara, tubo/tuvo, haya/halla…)',
+  2: 'un colmo, un "¿qué le dijo…?" o un calambur clásico',
+  3: 'un mexicanismo o refrán real (codo, oso, echar los perros, de pelos, ponerse las pilas…)',
+  4: 'un albur clásico de insinuación sutil (pronombres ambiguos, verbos comodín o nombre-calambur)',
+  5: 'un albur de duelo, breve y elegante',
+};
+function semilla(nivel) {
+  const tema = TEMAS[Math.floor(Math.random() * TEMAS.length)];
+  return `Tema sugerido: ${tema}. Construye la frase sobre ${FUENTES[nivel.id]}.`;
 }
 
 async function llamar(messages, { json = false, temperature = 0.8, max_tokens = 700 } = {}) {
@@ -88,9 +108,10 @@ function parsearJSON(texto) {
 export function generarFrase(nivel) {
   return llamar([
     { role: 'system', content: systemPrompt(nivel) },
-    { role: 'user', content: `Inventa UNA frase original de doble sentido acorde a mi nivel para que yo la descifre. Varía el tema (comida, oficios, escuela, transporte, fiestas…).
-Responde SOLO JSON: {"frase": "...", "pista": "pista corta sin revelar", "literal": "lectura literal", "oculta": "lectura oculta", "tecnica": "nombre de la técnica"}` },
-  ], { json: true, temperature: 1 });
+    { role: 'user', content: `Escribe UNA frase de doble sentido acorde a mi nivel para que yo la descifre. ${semilla(nivel)}
+La palabra o expresión clave debe tener los dos significados de verdad; no inventes usos.
+Responde SOLO JSON: {"frase": "...", "pista": "pista corta sin revelar", "clave": "palabra o expresión clave", "literal": "lectura literal", "oculta": "lectura oculta", "tecnica": "nombre de la técnica"}` },
+  ], { json: true, temperature: 0.85 });
 }
 
 /** Evalúa la interpretación del usuario. */
@@ -124,7 +145,7 @@ Cómo usarla bien: un consejo corto.` },
 export function generarReto(nivel) {
   return llamar([
     { role: 'system', content: systemPrompt(nivel) },
-    { role: 'user', content: `Dame un reto para que YO cree una frase de doble sentido de mi nivel: una palabra o situación de partida y una consigna clara.
+    { role: 'user', content: `Dame un reto para que YO cree una frase de doble sentido de mi nivel: una palabra de partida que de verdad tenga dos significados y una consigna clara. ${semilla(nivel)}
 Responde SOLO JSON: {"palabra": "...", "consigna": "...", "ejemplo_tecnica": "técnica sugerida"}` },
   ], { json: true, temperature: 1 });
 }

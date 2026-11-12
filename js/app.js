@@ -8,7 +8,23 @@ const $nav = document.getElementById('nav');
 
 // ---------- utilidades ----------
 const esc = (s = '') => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const texto = (s = '') => esc(s).replace(/\n/g, '<br>');
+// Markdown mínimo y seguro: **negritas**, *itálicas*, listas "- " y saltos de línea.
+function texto(s = '') {
+  const enLinea = (l) => l
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[\s(])\*(\S(?:.*?\S)?)\*(?=[\s.,;:!?)]|$)/g, '$1<em>$2</em>');
+  const salida = [];
+  let lista = [];
+  const cerrar = () => { if (lista.length) { salida.push(`<ul>${lista.join('')}</ul>`); lista = []; } };
+  for (const linea of esc(s).split('\n')) {
+    const m = linea.match(/^\s*(?:[-•]|\d+[.)])\s+(.*)$/);
+    if (m) { lista.push(`<li>${enLinea(m[1])}</li>`); continue; }
+    cerrar();
+    if (linea.trim()) salida.push(`<p>${enLinea(linea)}</p>`);
+  }
+  cerrar();
+  return salida.join('');
+}
 const ir = (ruta) => { location.hash = ruta; };
 const barajar = (arr) => arr.map((v) => [Math.random(), v]).sort((a, b) => a[0] - b[0]).map(([, v]) => v);
 
@@ -20,8 +36,8 @@ function toast(msg) {
   setTimeout(() => t.remove(), 2600);
 }
 
-function cargando(el, msg = 'El Compa está pensando…') {
-  el.innerHTML = `<div class="cargando"><span class="punto"></span><span class="punto"></span><span class="punto"></span> ${esc(msg)}</div>`;
+function cargando(el, msg = 'El Compa está pensando…', enHoja = false) {
+  el.innerHTML = `<div class="cargando ${enHoja ? 'en-hoja' : ''}" role="status"><span class="punto"></span><span class="punto"></span><span class="punto"></span> ${esc(msg)}</div>`;
 }
 
 function errorIA(el, e) {
@@ -32,7 +48,7 @@ function errorIA(el, e) {
 function encabezado(titulo, nivel, atras = '#/inicio') {
   return `<header class="encabezado">
     <a class="atras" href="${atras}" aria-label="Regresar">←</a>
-    <div><h1>${esc(titulo)}</h1>${nivel ? `<p class="sub">${nivel.emoji} Nivel ${nivel.id} · ${esc(nivel.nombre)}</p>` : ''}</div>
+    <div><h1>${esc(titulo)}</h1>${nivel ? `<p>Nivel ${nivel.id}: ${esc(nivel.carta)}</p>` : ''}</div>
   </header>`;
 }
 
@@ -43,20 +59,23 @@ function nivelValido(id) {
 }
 
 // ---------- vistas ----------
+let yaRepartio = false; // la animación de reparto de cartas solo ocurre una vez por sesión
+
+const resultado = (el, html) => { el.innerHTML = html; el.setAttribute('aria-live', 'polite'); };
+
 const vistas = {
   bienvenida() {
     $app.innerHTML = `
-      <section class="hero">
-        <div class="logo">IV</div>
+      <section class="portada">
         <h1>Ingenio verbal</h1>
-        <p class="lema">Entiende el doble sentido. Practícalo. Gánale al Compa.</p>
+        <p class="lema">Aprende a escuchar las dos lecturas de una frase, practícalo por niveles y gánale al Compa.</p>
       </section>
-      <section class="tarjeta">
+      <section class="hoja">
         <h2>Antes de empezar</h2>
-        <p>Los niveles 4 y 5 enseñan el albur mexicano, que usa insinuación para adultos. ¿Tienes 18 años o más?</p>
+        <p>Los niveles 4 y 5 enseñan el albur mexicano, que juega con insinuaciones para adultos. ¿Tienes 18 años o más?</p>
         <div class="fila">
-          <button class="btn" data-edad="si">Sí, soy mayor de 18</button>
-          <button class="btn sec" data-edad="no">No / prefiero modo blanco</button>
+          <button class="btn" data-edad="si">Sí, tengo 18 o más</button>
+          <button class="btn sec" data-edad="no">No, o prefiero el modo blanco</button>
         </div>
       </section>`;
     $app.querySelectorAll('[data-edad]').forEach((b) => b.onclick = () => {
@@ -76,21 +95,22 @@ const vistas = {
         if (aciertos[1] === 2) nivel = 2;
         if (aciertos[1] === 2 && aciertos[2] === 2) nivel = 3;
         store.set({ onboarding: true, nivelInicial: nivel });
-        $app.innerHTML = `${encabezado('¡Listo!')}
-          <section class="tarjeta centro">
-            <div class="grande">${nivelPorId(nivel).emoji}</div>
-            <h2>Empiezas en el nivel ${nivel}: ${esc(nivelPorId(nivel).nombre)}</h2>
-            <p>Sube de nivel ganando XP en los quizzes y con las actividades del Compa.</p>
-            <button class="btn" id="vamos">¡Vamos!</button>
+        const n = nivelPorId(nivel);
+        $app.innerHTML = `${encabezado('Tu primera carta', null, '#/bienvenida')}
+          <section class="hoja centro">
+            <div class="grande" aria-hidden="true">${n.emoji}</div>
+            <h2>Empiezas como ${esc(n.carta)}</h2>
+            <p>Nivel ${n.id}: ${esc(n.tema)}. Destapa las siguientes cartas ganando XP en los quizzes y con el Compa.</p>
+            <button class="btn" id="vamos">Ver mis cartas</button>
           </section>`;
         document.getElementById('vamos').onclick = () => ir('#/inicio');
         return;
       }
       const p = preguntas[i];
       $app.innerHTML = `${encabezado('Examen de colocación', null, '#/bienvenida')}
-        <p class="progreso-txt">Pregunta ${i + 1} de ${preguntas.length}</p>
+        <p class="contador">Pregunta ${i + 1} de ${preguntas.length}</p>
         ${tarjetaPregunta(p)}
-        <button class="btn link" id="saltar">Saltar y empezar desde el nivel 1</button>`;
+        <button class="btn texto" id="saltar">Saltar y empezar en el nivel 1</button>`;
       $app.querySelectorAll('.opcion').forEach((b) => b.onclick = () => {
         if (Number(b.dataset.i) === p.correcta) aciertos[p.nivel]++;
         i++; pintar();
@@ -104,53 +124,70 @@ const vistas = {
     const s = store.get();
     const max = store.nivelMaximo();
     const siguiente = NIVELES.find((n) => n.xpMin > s.xp && !(n.adulto && s.modoBlanco));
+    const ia = store.iaDisponibles();
     $app.innerHTML = `
-      <section class="hero chico">
+      <section class="portada">
         <h1>Ingenio verbal</h1>
-        <div class="stats">
-          <span>⭐ ${s.xp} XP</span><span>🔥 ${s.racha} día${s.racha === 1 ? '' : 's'}</span><span>🤖 ${store.iaDisponibles() === Infinity ? '∞' : store.iaDisponibles()} IA hoy</span>
+        <div class="marcador">
+          <span><b>${s.xp}</b>XP</span>
+          <span><b>${s.racha}</b>${s.racha === 1 ? 'día seguido' : 'días seguidos'}</span>
+          <span><b>${ia === Infinity ? '∞' : ia}</b>consultas al Compa hoy</span>
         </div>
-        ${siguiente ? `<div class="barra"><div style="width:${Math.min(100, (s.xp / siguiente.xpMin) * 100)}%"></div></div><p class="sub">${siguiente.xpMin - s.xp} XP para desbloquear ${siguiente.emoji} ${esc(siguiente.nombre)}</p>` : ''}
+        ${siguiente ? `<div class="avance"><div class="barra"><div style="width:${Math.min(100, (s.xp / siguiente.xpMin) * 100)}%"></div></div>
+          Te faltan ${siguiente.xpMin - s.xp} XP para destapar a ${esc(siguiente.carta)}</div>` : ''}
       </section>
-      <section class="niveles">
+      <section class="baraja ${yaRepartio ? '' : 'reparte'}" aria-label="Niveles">
         ${NIVELES.map((n) => {
-          const abierto = store.nivelDesbloqueado(n);
-          const bloqueoAdulto = n.adulto && s.modoBlanco;
-          return `<a class="nivel ${abierto ? '' : 'bloqueado'} ${n.id === max ? 'actual' : ''}" ${abierto ? `href="#/nivel/${n.id}"` : ''}>
-            <span class="emoji">${abierto ? n.emoji : '🔒'}</span>
-            <div><h3>Nivel ${n.id} · ${esc(n.nombre)}${n.adulto ? ' <small class="pill">+18</small>' : ''}</h3>
-            <p>${esc(n.tema)}</p>
-            ${!abierto ? `<p class="sub">${bloqueoAdulto ? 'Desactivado en modo blanco' : `Se desbloquea con ${n.xpMin} XP`}</p>` : ''}</div>
+          if (!store.nivelDesbloqueado(n)) {
+            const razon = n.adulto && s.modoBlanco ? 'Desactivada en modo blanco' : `Se destapa con ${n.xpMin} XP`;
+            return `<div class="carta volteada" aria-label="Nivel ${n.id} bloqueado. ${razon}">
+              <div class="reverso"><b>${n.id}</b><span>${razon}</span></div></div>`;
+          }
+          return `<a class="carta ${n.id === max ? 'actual' : ''}" href="#/nivel/${n.id}" style="--fondo-carta:${n.fondo}">
+            ${n.adulto ? '<span class="adulto">+18</span>' : ''}
+            <span class="num">${n.id}</span>
+            <span class="dibujo" aria-hidden="true">${n.emoji}</span>
+            <span class="nombre">${esc(n.carta)}</span>
+            <span class="tema">${esc(n.tema)}</span>
           </a>`;
         }).join('')}
       </section>`;
+    yaRepartio = true;
   },
 
   nivel(id) {
     const n = nivelValido(id); if (!n) return;
     const modos = [
-      ['lecciones', '📖', 'Aprende', 'Teoría y ejemplos del nivel'],
-      ['quiz', '✅', 'Quiz', 'Practica sin internet · +10 XP por acierto'],
-      ['descifra', '🔍', 'Descifra', 'El Compa te lanza una frase, tú explicas el doble sentido'],
-      ['crea', '✍️', 'Crea', 'Escribe tu propia frase y recibe calificación'],
-      ['explica', '🧠', 'Explícame', 'Pega una frase y entiende sus dos lecturas'],
-      ['compa', n.id >= 4 ? '⚔️' : '💬', n.id >= 4 ? 'Duelo' : 'Platica con el Compa', n.id >= 4 ? 'Duelo de albures contra la IA' : 'Práctica libre en conversación'],
+      ['lecciones', '📖', 'Aprende', 'Teoría corta con ejemplos', false],
+      ['quiz', '✅', 'Quiz', 'Opción múltiple, funciona sin internet', false],
+      ['descifra', '🔍', 'Descifra', 'El Compa te lanza una frase y tú explicas sus dos lecturas', true],
+      ['crea', '✍️', 'Crea', 'Escribe tu propia frase y recibe calificación', true],
+      ['explica', '🧠', 'Explícame', 'Pega una frase que no entiendas', true],
+      ['compa', n.id >= 4 ? '⚔️' : '💬', n.id >= 4 ? 'Duelo' : 'Platica con el Compa', n.id >= 4 ? 'Albures contra la IA, a ver quién cae' : 'Práctica libre en conversación', true],
     ];
-    $app.innerHTML = `${encabezado(n.tema, n)}
-      <p class="desc">${esc(n.descripcion)}</p>
-      <section class="modos">
-        ${modos.map(([r, e, t, d]) => `<a class="modo" href="#/${r}/${n.id}"><span class="emoji">${e}</span><div><h3>${t}</h3><p>${d}</p></div></a>`).join('')}
-      </section>`;
+    $app.innerHTML = `${encabezado(n.carta, null)}
+      <section class="hoja">
+        <h2>${esc(n.tema)}</h2>
+        <p>${esc(n.descripcion)}</p>
+      </section>
+      <nav class="hoja modos" style="padding:0" aria-label="Modos de práctica">
+        ${modos.map(([r, e, t, d, conIA]) => `<a class="modo" href="#/${r}/${n.id}">
+          <span class="icono" aria-hidden="true">${e}</span>
+          <div><h3>${t}${conIA ? '<span class="ia" title="Usa inteligencia artificial">IA</span>' : ''}</h3><p>${d}</p></div>
+        </a>`).join('')}
+      </nav>`;
   },
 
   lecciones(id) {
     const n = nivelValido(id); if (!n) return;
     $app.innerHTML = `${encabezado('Aprende', n, `#/nivel/${n.id}`)}
-      ${n.lecciones.map((l) => `<article class="tarjeta">
-        <h2>${esc(l.titulo)}</h2><p>${esc(l.texto)}</p>
-        <ul>${l.ejemplos.map((e) => `<li>${esc(e)}</li>`).join('')}</ul>
-      </article>`).join('')}
-      <a class="btn" href="#/quiz/${n.id}">Ir al quiz</a>`;
+      <section class="hoja">
+        ${n.lecciones.map((l) => `<article class="leccion">
+          <h2>${esc(l.titulo)}</h2><p>${esc(l.texto)}</p>
+          <ul>${l.ejemplos.map((e) => `<li>${esc(e)}</li>`).join('')}</ul>
+        </article>`).join('')}
+      </section>
+      <a class="btn ancho" href="#/quiz/${n.id}">Practicar con el quiz</a>`;
   },
 
   quiz(id) {
@@ -161,17 +198,21 @@ const vistas = {
       if (i >= preguntas.length) {
         const xp = aciertos * 10;
         store.sumarXP(xp, `Quiz nivel ${n.id}`);
+        const perfecto = aciertos === preguntas.length;
         $app.innerHTML = `${encabezado('Resultado', n, `#/nivel/${n.id}`)}
-          <section class="tarjeta centro"><div class="grande">${aciertos === preguntas.length ? '🏆' : aciertos >= preguntas.length / 2 ? '👏' : '💪'}</div>
-          <h2>${aciertos} de ${preguntas.length}</h2><p>+${xp} XP</p>
-          <div class="fila"><button class="btn" id="otra">Otra ronda</button><a class="btn sec" href="#/descifra/${n.id}">Reto con IA</a></div></section>`;
+          <section class="hoja centro">
+            <div class="grande" aria-hidden="true">${perfecto ? '🏆' : aciertos >= preguntas.length / 2 ? '👏' : '💪'}</div>
+            <h2>${aciertos} de ${preguntas.length} correctas</h2>
+            <p>Ganaste ${xp} XP.${perfecto ? ' ¡Lotería!' : ''}</p>
+            <div class="fila"><button class="btn" id="otra">Jugar otra ronda</button><a class="btn sec" href="#/descifra/${n.id}">Descifrar con el Compa</a></div>
+          </section>`;
         document.getElementById('otra').onclick = () => vistas.quiz(id);
         return;
       }
       const p = preguntas[i];
       $app.innerHTML = `${encabezado('Quiz', n, `#/nivel/${n.id}`)}
-        <p class="progreso-txt">${i + 1} / ${preguntas.length}</p>
-        ${tarjetaPregunta(p)}<div id="fb"></div>`;
+        <p class="contador">Pregunta ${i + 1} de ${preguntas.length}</p>
+        ${tarjetaPregunta(p)}<div id="fb" aria-live="polite"></div>`;
       $app.querySelectorAll('.opcion').forEach((b) => b.onclick = () => {
         const ok = Number(b.dataset.i) === p.correcta;
         if (ok) aciertos++;
@@ -180,8 +221,9 @@ const vistas = {
           if (Number(o.dataset.i) === p.correcta) o.classList.add('ok');
         });
         if (!ok) b.classList.add('mal');
-        document.getElementById('fb').innerHTML = `<div class="aviso ${ok ? 'exito' : ''}"><strong>${ok ? '¡Bien!' : 'Casi.'}</strong> ${esc(p.explica)}</div>
-          <button class="btn" id="sig">Siguiente</button>`;
+        document.getElementById('fb').innerHTML = `<div class="aviso ${ok ? 'exito' : 'error'}"><strong>${ok ? 'Correcto.' : 'No era esa.'}</strong> ${esc(p.explica)}</div>
+          <button class="btn ancho" id="sig">${i + 1 < preguntas.length ? 'Siguiente pregunta' : 'Ver resultado'}</button>`;
+        document.getElementById('sig').focus();
         document.getElementById('sig').onclick = () => { i++; pintar(); };
       });
     };
@@ -196,25 +238,27 @@ const vistas = {
       cargando(zona, 'El Compa está armando una frase…');
       try {
         const item = await ia.generarFrase(n);
-        zona.innerHTML = `<section class="tarjeta">
+        zona.innerHTML = `<section class="hoja">
             <p class="frase">“${esc(item.frase)}”</p>
             <details><summary>Ver pista</summary><p>${esc(item.pista)}</p></details>
             <label for="resp">¿Cuáles son las dos lecturas?</label>
-            <textarea id="resp" rows="3" placeholder="Literal: … / Oculta: …"></textarea>
-            <button class="btn" id="enviar">Revisar</button>
+            <textarea id="resp" rows="3" placeholder="Lo que dice literal… y lo que insinúa…"></textarea>
+            <button class="btn" id="enviar">Revisar mi respuesta</button>
           </section><div id="fb"></div>`;
         document.getElementById('enviar').onclick = async () => {
           const r = document.getElementById('resp').value.trim();
-          if (!r) return toast('Escribe tu interpretación');
+          if (!r) return toast('Escribe tu interpretación primero');
           const fb = document.getElementById('fb');
-          cargando(fb, 'Calificando…');
+          cargando(fb, 'El Compa está revisando…');
           try {
             const ev = await ia.evaluarInterpretacion(n, item, r);
             const pts = Math.max(0, Math.min(10, Number(ev.puntaje) || 0));
             store.sumarXP(pts * 2, `Descifra nivel ${n.id}`);
-            fb.innerHTML = `<section class="tarjeta"><h2>${pts}/10 ${ev.capto ? '🎯' : '🤔'}</h2>
-              <p>${texto(ev.retro)}</p><p class="sub">${texto(ev.explicacion)}</p><p class="sub">Técnica: ${esc(item.tecnica || '')} · +${pts * 2} XP</p>
-              <button class="btn" id="otra">Otra frase</button></section>`;
+            resultado(fb, `<section class="hoja">
+              <div class="veredicto ${pts >= 7 ? 'alto' : pts <= 4 ? 'bajo' : ''}"><span class="puntos">${pts}/10</span><span>${ev.capto ? 'Lo captaste' : 'Se te fue'}</span></div>
+              ${texto(ev.retro)}${texto(ev.explicacion)}
+              <p class="nota">${item.tecnica ? `Técnica: ${esc(item.tecnica)}. ` : ''}Ganaste ${pts * 2} XP.</p>
+              <button class="btn" id="otra">Otra frase</button></section>`);
             document.getElementById('otra').onclick = nueva;
           } catch (e) { errorIA(fb, e); }
         };
@@ -228,27 +272,33 @@ const vistas = {
     $app.innerHTML = `${encabezado('Crea', n, `#/nivel/${n.id}`)}<div id="zona"></div>`;
     const zona = document.getElementById('zona');
     const nuevo = async () => {
-      cargando(zona, 'Preparando tu reto…');
+      cargando(zona, 'El Compa está preparando tu reto…');
       try {
         const reto = await ia.generarReto(n);
-        zona.innerHTML = `<section class="tarjeta">
-            <p class="sub">Palabra de partida</p><p class="frase">${esc(reto.palabra)}</p>
-            <p>${esc(reto.consigna)}</p><p class="sub">Técnica sugerida: ${esc(reto.ejemplo_tecnica || '')}</p>
-            <textarea id="frase" rows="3" placeholder="Escribe tu frase de doble sentido"></textarea>
-            <button class="btn" id="enviar">Calificar</button>
+        zona.innerHTML = `<section class="hoja">
+            <p class="nota">Tu palabra de partida</p>
+            <p class="frase">${esc(reto.palabra)}</p>
+            <p>${esc(reto.consigna)}</p>
+            ${reto.ejemplo_tecnica ? `<p class="nota">Técnica sugerida: ${esc(reto.ejemplo_tecnica)}</p>` : ''}
+            <label for="frase">Tu frase</label>
+            <textarea id="frase" rows="3"></textarea>
+            <button class="btn" id="enviar">Calificar mi frase</button>
           </section><div id="fb"></div>`;
         document.getElementById('enviar').onclick = async () => {
           const f = document.getElementById('frase').value.trim();
-          if (!f) return toast('Escribe tu frase');
+          if (!f) return toast('Escribe tu frase primero');
           const fb = document.getElementById('fb');
-          cargando(fb, 'El Compa está juzgando tu ingenio…');
+          cargando(fb, 'El Compa está calificando tu ingenio…');
           try {
             const ev = await ia.evaluarCreacion(n, reto, f);
             const pts = Math.max(0, Math.min(10, Number(ev.puntaje) || 0));
             store.sumarXP(pts * 3, `Crea nivel ${n.id}`);
-            fb.innerHTML = `<section class="tarjeta"><h2>${pts}/10 ${pts >= 8 ? '🔥' : pts >= 5 ? '👍' : '🛠️'}</h2>
-              <p>${texto(ev.retro)}</p><p class="sub">Versión mejorada:</p><p class="frase chica">${esc(ev.mejora)}</p>
-              <p class="sub">+${pts * 3} XP</p><button class="btn" id="otro">Otro reto</button></section>`;
+            resultado(fb, `<section class="hoja">
+              <div class="veredicto ${pts >= 7 ? 'alto' : pts <= 4 ? 'bajo' : ''}"><span class="puntos">${pts}/10</span></div>
+              ${texto(ev.retro)}
+              <p class="nota">Así podría quedar mejor:</p><p class="frase chica">${esc(ev.mejora)}</p>
+              <p class="nota">Ganaste ${pts * 3} XP.</p>
+              <button class="btn" id="otro">Otro reto</button></section>`);
             document.getElementById('otro').onclick = nuevo;
           } catch (e) { errorIA(fb, e); }
         };
@@ -260,20 +310,20 @@ const vistas = {
   explica(id) {
     const n = nivelValido(id); if (!n) return;
     $app.innerHTML = `${encabezado('Explícame', n, `#/nivel/${n.id}`)}
-      <section class="tarjeta">
+      <section class="hoja">
         <label for="frase">Pega o escribe una frase, chiste o albur que no entiendas</label>
         <textarea id="frase" rows="3" maxlength="400"></textarea>
-        <button class="btn" id="enviar">Explicar</button>
+        <button class="btn" id="enviar">Explicar la frase</button>
       </section><div id="fb"></div>`;
     document.getElementById('enviar').onclick = async () => {
       const f = document.getElementById('frase').value.trim();
-      if (!f) return toast('Escribe una frase');
+      if (!f) return toast('Escribe una frase primero');
       const fb = document.getElementById('fb');
       cargando(fb);
       try {
         const r = await ia.explicarFrase(n, f);
         store.sumarXP(2, `Explícame nivel ${n.id}`);
-        fb.innerHTML = `<section class="tarjeta"><p>${texto(r)}</p></section>`;
+        resultado(fb, `<section class="hoja">${texto(r)}</section>`);
       } catch (e) { errorIA(fb, e); }
     };
   },
@@ -282,16 +332,18 @@ const vistas = {
     const n = nivelValido(id); if (!n) return;
     const historial = [];
     $app.innerHTML = `${encabezado(n.id >= 4 ? 'Duelo' : 'Platica con el Compa', n, `#/nivel/${n.id}`)}
-      <section class="chat" id="chat"></section>
+      <section class="chat" id="chat" aria-live="polite"></section>
       <form class="entrada" id="form">
-        <input id="msg" autocomplete="off" maxlength="300" placeholder="${n.id >= 4 ? 'Regrésala…' : 'Escribe aquí…'}">
-        <button class="btn" type="submit">➤</button>
+        <label for="msg" class="sr">Tu mensaje</label>
+        <input id="msg" autocomplete="off" maxlength="300" placeholder="${n.id >= 4 ? 'Regrésala…' : 'Escribe tu respuesta…'}">
+        <button class="btn" type="submit" aria-label="Enviar">Enviar</button>
       </form>`;
     const chat = document.getElementById('chat');
     const burbuja = (rol, t) => {
       const d = document.createElement('div');
       d.className = `burbuja ${rol}`;
-      d.innerHTML = texto(t).replace(/(🔎[^<]*)/g, '<span class="lupa">$1</span>');
+      const [cuerpo, ...lupa] = t.split('🔎');
+      d.innerHTML = texto(cuerpo) + (lupa.length ? `<span class="lupa">🔎 ${esc(lupa.join(' ').trim())}</span>` : '');
       chat.appendChild(d);
       chat.scrollTop = chat.scrollHeight;
       return d;
@@ -324,44 +376,54 @@ const vistas = {
   progreso() {
     const s = store.get();
     $app.innerHTML = `${encabezado('Tu progreso')}
-      <section class="tarjeta"><div class="stats"><span>⭐ ${s.xp} XP</span><span>🔥 Racha: ${s.racha}</span><span>🏅 Nivel máx: ${store.nivelMaximo()}</span></div></section>
-      <section class="tarjeta"><h2>Actividad reciente</h2>
-        ${s.historial.length ? `<ul class="lista">${s.historial.map((h) => `<li><span>${esc(h.actividad)}</span><span>+${h.puntos} XP · ${esc(h.fecha)}</span></li>`).join('')}</ul>` : '<p>Aún no hay actividad. ¡Empieza con un quiz!</p>'}
+      <section class="hoja">
+        <div class="marcador" style="color:var(--tinta);margin:0">
+          <span><b>${s.xp}</b>XP</span><span><b>${s.racha}</b>${s.racha === 1 ? 'día seguido' : 'días seguidos'}</span><span><b>${store.nivelMaximo()}</b>de 5 cartas destapadas</span>
+        </div>
+      </section>
+      <section class="hoja"><h2>Actividad reciente</h2>
+        ${s.historial.length
+          ? `<ul class="lista">${s.historial.map((h) => `<li><span>${esc(h.actividad)}<br><span class="nota">${esc(h.fecha)}</span></span><span class="pts">+${h.puntos} XP</span></li>`).join('')}</ul>`
+          : '<p>Todavía no hay actividad. Empieza con el quiz de tu primera carta.</p><a class="btn" href="#/inicio">Ir a mis cartas</a>'}
       </section>`;
   },
 
   ajustes() {
     const s = store.get();
     $app.innerHTML = `${encabezado('Ajustes')}
-      <section class="tarjeta">
-        <label class="switch"><input type="checkbox" id="blanco" ${s.modoBlanco ? 'checked' : ''} ${s.mayorDeEdad ? '' : 'disabled'}> Modo blanco (sin contenido para adultos)</label>
-        ${s.mayorDeEdad ? '' : '<p class="sub">Indicaste ser menor de 18 o preferir modo blanco, así que los niveles 4 y 5 quedan desactivados.</p>'}
+      <section class="hoja">
+        <h2>Contenido</h2>
+        <label class="interruptor"><input type="checkbox" id="blanco" ${s.modoBlanco ? 'checked' : ''} ${s.mayorDeEdad ? '' : 'disabled'}> Modo blanco, sin contenido para adultos</label>
+        ${s.mayorDeEdad ? '' : '<p class="nota">Como indicaste ser menor de 18 o preferir el modo blanco, los niveles 4 y 5 quedan desactivados.</p>'}
       </section>
-      <section class="tarjeta">
-        <h2>API key propia de Groq (opcional)</h2>
-        <p class="sub">Si la agregas, la app usa tu cuenta de Groq directo y sin límite diario. Se guarda solo en este dispositivo.</p>
-        <input id="key" type="password" placeholder="gsk_..." value="${esc(s.apiKeyPropia)}">
-        <button class="btn" id="guardar">Guardar</button>
+      <section class="hoja">
+        <h2>Tu propia API key de Groq</h2>
+        <p class="nota">Opcional. Con ella el Compa usa tu cuenta de Groq y no tiene límite diario. Se guarda solo en este dispositivo.</p>
+        <label for="key">API key</label>
+        <input id="key" type="password" placeholder="gsk_…" value="${esc(s.apiKeyPropia)}">
+        <button class="btn" id="guardar">Guardar API key</button>
       </section>
-      <section class="tarjeta">
-        <h2>Reiniciar</h2><p class="sub">Borra tu progreso y vuelve a la bienvenida.</p>
-        <button class="btn peligro" id="reset">Reiniciar progreso</button>
+      <section class="hoja">
+        <h2>Empezar de cero</h2>
+        <p class="nota">Borra tu XP, racha e historial y regresa a la bienvenida.</p>
+        <button class="btn peligro" id="reset">Borrar mi progreso</button>
       </section>
-      <p class="sub centro">Ingenio verbal v0.1 · IA por Groq</p>`;
-    document.getElementById('blanco').onchange = (e) => { store.set({ modoBlanco: e.target.checked }); toast('Guardado'); };
+      <p class="centro" style="color:#FFE3F1">Ingenio verbal v0.2, con IA de Groq</p>`;
+    document.getElementById('blanco').onchange = (e) => { store.set({ modoBlanco: e.target.checked }); toast(e.target.checked ? 'Modo blanco activado' : 'Modo blanco desactivado'); };
     document.getElementById('guardar').onclick = () => { store.set({ apiKeyPropia: document.getElementById('key').value.trim() }); toast('API key guardada'); };
-    document.getElementById('reset').onclick = () => {
-      if (document.getElementById('reset').dataset.confirm) { store.reiniciar(); ir('#/bienvenida'); return; }
-      document.getElementById('reset').dataset.confirm = '1';
-      document.getElementById('reset').textContent = 'Toca otra vez para confirmar';
+    const reset = document.getElementById('reset');
+    reset.onclick = () => {
+      if (reset.dataset.confirm) { store.reiniciar(); yaRepartio = false; ir('#/bienvenida'); return; }
+      reset.dataset.confirm = '1';
+      reset.textContent = 'Toca otra vez para borrar';
     };
   },
 };
 
 function tarjetaPregunta(p) {
-  return `<section class="tarjeta">
+  return `<section class="hoja">
     <p class="frase">“${esc(p.frase)}”</p>
-    <p><strong>${esc(p.pregunta)}</strong></p>
+    <p class="pregunta">${esc(p.pregunta)}</p>
     <div class="opciones">${p.opciones.map((o, i) => `<button class="opcion" data-i="${i}">${esc(o)}</button>`).join('')}</div>
   </section>`;
 }

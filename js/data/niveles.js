@@ -6,6 +6,8 @@ export const NIVELES = [
   {
     id: 1,
     nombre: 'Aprendiz',
+    carta: 'El Aprendiz',
+    fondo: '#E3F2D9',
     emoji: '🌱',
     tema: 'Palabras con dos caras',
     descripcion: 'Polisemia, homonimia y homofonía: una misma palabra (o sonido) con varios significados.',
@@ -41,6 +43,8 @@ export const NIVELES = [
   {
     id: 2,
     nombre: 'Ingenioso',
+    carta: 'El Ingenioso',
+    fondo: '#FFF4D1',
     emoji: '💡',
     tema: 'Chistes, colmos y calambures',
     descripcion: 'El doble sentido como motor del humor blanco: colmos, "¿qué le dijo…?" y calambures (juntar o separar sílabas).',
@@ -76,6 +80,8 @@ export const NIVELES = [
   {
     id: 3,
     nombre: 'Pícaro',
+    carta: 'El Pícaro',
+    fondo: '#FFE0EE',
     emoji: '😏',
     tema: 'Doble sentido cotidiano y mexicanismos',
     descripcion: 'Expresiones mexicanas, refranes y frases con picardía ligera que se dicen en cualquier reunión.',
@@ -111,6 +117,8 @@ export const NIVELES = [
   {
     id: 4,
     nombre: 'Alburero',
+    carta: 'El Alburero',
+    fondo: '#FFE1D6',
     emoji: '🌶️',
     tema: 'El albur: reglas del juego',
     descripcion: 'El albur mexicano: insinuar sin decir, no "caer" y aprender a "regresarla". Solo para mayores de 18.',
@@ -145,6 +153,8 @@ export const NIVELES = [
   {
     id: 5,
     nombre: 'Maestro',
+    carta: 'El Maestro',
+    fondo: '#E1E8F7',
     emoji: '🎩',
     tema: 'Duelo de ingenio',
     descripcion: 'Duelos rápidos contra la IA: encadenar, regresarla y cerrar sin dejar respuesta. Solo para mayores de 18.',
