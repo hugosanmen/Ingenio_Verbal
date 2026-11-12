@@ -444,5 +444,11 @@ window.addEventListener('hashchange', router);
 router();
 
 if ('serviceWorker' in navigator) {
+  // Si ya había una versión instalada y llega una nueva, recarga una vez para usarla.
+  const habiaVersion = !!navigator.serviceWorker.controller;
+  let recargado = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (habiaVersion && !recargado) { recargado = true; location.reload(); }
+  });
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 }
