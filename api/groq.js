@@ -55,8 +55,11 @@ export default async function handler(req) {
     body: JSON.stringify({ ...base, ...extra }),
   });
 
-  // gpt-oss acepta reasoning_effort; si el modelo configurado no lo soporta, reintenta sin él.
-  let r = await llamar({ reasoning_effort: 'low' });
+  // Ajustes de razonamiento según la familia del modelo; si el modelo no los soporta, reintenta sin ellos.
+  // - gpt-oss: reasoning_effort "low" (más rápido).
+  // - qwen: oculta el razonamiento para que no llegue <think>…</think> al texto.
+  const esQwen = base.model.startsWith('qwen/');
+  let r = await llamar(esQwen ? { reasoning_format: 'hidden' } : { reasoning_effort: 'low' });
   if (r.status === 400) r = await llamar({});
 
   const texto = await r.text();

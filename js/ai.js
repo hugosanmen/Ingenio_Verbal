@@ -68,7 +68,8 @@ async function llamar(messages, { json = false, temperature = 0.8, max_tokens = 
     throw new ErrorIA(res.status === 401 ? 'API key inválida. Revísala en Ajustes.' : 'La IA no respondió bien. Intenta otra vez.');
   }
   const data = await res.json();
-  const texto = data?.choices?.[0]?.message?.content?.trim() || '';
+  // Quita bloques de razonamiento si el modelo los incluye en el texto.
+  const texto = (data?.choices?.[0]?.message?.content || '').replace(/<think>[\s\S]*?<\/think>/g, '').trim();
   store.consumirIA();
   if (!json) return texto;
   return parsearJSON(texto);
