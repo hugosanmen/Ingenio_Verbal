@@ -1,5 +1,5 @@
 // Service worker: app shell offline (cache-first); la IA siempre va por red.
-const VERSION = 'iv-v0.2.1';
+const VERSION = 'iv-v0.3.0';
 const SHELL = [
   './',
   './index.html',
@@ -7,6 +7,7 @@ const SHELL = [
   './js/app.js',
   './js/ai.js',
   './js/store.js',
+  './js/config.js',
   './js/data/niveles.js',
   './manifest.webmanifest',
   './icons/icon.svg',

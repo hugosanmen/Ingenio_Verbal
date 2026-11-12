@@ -199,3 +199,13 @@ summary { cursor: pointer; font-weight: 600; color: var(--anil); }
   .baraja { grid-template-columns: repeat(3, 1fr); }
 }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- Apoyo / donaciones ---------- */
+.apoyo { display: flex; gap: 12px; align-items: center; margin-top: 22px; padding: 14px 16px; background: var(--maiz); color: var(--tinta); border: var(--borde); border-radius: 14px; text-decoration: none; box-shadow: 4px 4px 0 var(--tinta); }
+.apoyo:hover { background: #FFD45C; }
+.apoyo .icono { font-size: 1.8rem; }
+.destinos { list-style: none; padding: 0; margin: 0; }
+.destinos li { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; }
+.destinos li + li { border-top: 1px solid var(--linea); }
+.destinos .icono { font-size: 1.5rem; width: 32px; text-align: center; flex-shrink: 0; }
+.destinos p { margin: 2px 0 0; color: var(--gris); font-size: .93rem; }

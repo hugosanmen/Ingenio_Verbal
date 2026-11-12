@@ -2,6 +2,7 @@
 import { NIVELES, COLOCACION, nivelPorId } from './data/niveles.js';
 import { store } from './store.js';
 import * as ia from './ai.js';
+import { DONACIONES } from './config.js';
 
 const $app = document.getElementById('app');
 const $nav = document.getElementById('nav');
@@ -151,7 +152,11 @@ const vistas = {
             <span class="tema">${esc(n.tema)}</span>
           </a>`;
         }).join('')}
-      </section>`;
+      </section>
+      ${DONACIONES.url ? `<a class="apoyo" href="#/apoyar">
+        <span class="icono" aria-hidden="true">☕</span>
+        <span><strong>Ingenio verbal es gratis.</strong> Si te sirve, ayúdanos a pagar la IA y a mejorar la app.</span>
+      </a>` : ''}`;
     yaRepartio = true;
   },
 
@@ -403,6 +408,11 @@ const vistas = {
         <input id="key" type="password" placeholder="gsk_…" value="${esc(s.apiKeyPropia)}">
         <button class="btn" id="guardar">Guardar API key</button>
       </section>
+      ${DONACIONES.url ? `<section class="hoja">
+        <h2>Apoya el proyecto</h2>
+        <p class="nota">Tu donación paga la IA del Compa y nuevas mejoras.</p>
+        <a class="btn" href="#/apoyar">Ver cómo apoyar</a>
+      </section>` : ''}
       <section class="hoja">
         <h2>Empezar de cero</h2>
         <p class="nota">Borra tu XP, racha e historial y regresa a la bienvenida.</p>
@@ -417,6 +427,25 @@ const vistas = {
       reset.dataset.confirm = '1';
       reset.textContent = 'Toca otra vez para borrar';
     };
+  },
+  apoyar() {
+    const d = DONACIONES;
+    $app.innerHTML = `${encabezado('Apoya Ingenio verbal')}
+      <section class="hoja">
+        <h2>Por qué pedimos apoyo</h2>
+        <p>Cada vez que platicas con el Compa, descifras o creas una frase, la app consulta un modelo de IA que cuesta dinero. Las donaciones mantienen la app gratis para todos y la hacen mejor.</p>
+      </section>
+      <section class="hoja">
+        <h2>En qué se usa tu donación</h2>
+        <ul class="destinos">${d.destino.map(([e, t, x]) => `<li><span class="icono" aria-hidden="true">${e}</span><div><strong>${esc(t)}</strong><p>${esc(x)}</p></div></li>`).join('')}</ul>
+      </section>
+      <section class="hoja centro">
+        ${d.url
+          ? `<p>Cualquier cantidad ayuda. No necesitas cuenta en Ingenio verbal.</p>
+             <a class="btn ancho" href="${esc(d.url)}" target="_blank" rel="noopener noreferrer">Donar${d.plataforma ? ` con ${esc(d.plataforma)}` : ''}</a>
+             <p class="nota" style="margin-top:12px">El pago se hace en ${d.plataforma ? esc(d.plataforma) : 'la página de la plataforma'}; Ingenio verbal no ve ni guarda tus datos de pago.</p>`
+          : '<p>Las donaciones estarán disponibles muy pronto.</p>'}
+      </section>`;
   },
 };
 
